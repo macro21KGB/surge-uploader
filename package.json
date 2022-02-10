@@ -2,13 +2,21 @@
   "name": "surge-uploader",
   "type": "module",
   "version": "1.0.0",
-  "description": "",
+  "description": "This package allows you to automatically create an HTML page with all your projects uploaded to Surge",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
+  "bin": "index.js",
+  "keywords": [
+    "surge",
+    "tool",
+    "uploader",
+    "surge-uploader",
+    "cli",
+    "nodejs"
+  ],
+  "author": "macro21KGB",
   "license": "ISC",
   "dependencies": {
     "chalk": "^5.0.0",

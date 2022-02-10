@@ -1,68 +1,23 @@
 #!/usr/bin/env node
 
-
 // Dependencies
 import chalk from 'chalk';
-import inquirer from 'inquirer';
-import gradient from 'gradient-string';
-import figlet from 'figlet';
-import chalkAnimation from 'chalk-animation';
 import { exec } from 'child_process';
+import figlet from 'figlet';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import inquirer from 'inquirer';
 import { createSpinner } from 'nanospinner';
-import fs from 'fs';
-import baseHTMLTemplate from './settings.js';
-
-const user = {
-  username: '',
-  password: ''
-}
-
+import path from 'path';
+import { baseHTMLTemplate, getSurgeUsername, deleteTerminalCharactersFromName } from './utils.js';
 
 const sleep = (ms = 2000) => new Promise(resolve => setTimeout(resolve, ms));
+const homeDir = process.env[(process.platform == 'win32') ? 'USERPROFILE' : 'HOME'];
 
-const askUserCredentials = async () => {
-  const answers = await inquirer.prompt([{
-    name: 'username',
-    type: 'input',
-    message: 'Enter your Surge username:'
-  },
-  {   
-    name: 'password',
-    type: 'input',
-    message: 'Enter your Surge password:'
-  }]
-)
+let currentUsername = '';
 
-  user.username = answers.username;
-  user.password = answers.password;
-
-}
-
-const loadUserCredentials = () => {
-  // Load user credentials from a file
-  //
-
-  try {
-
-  
-    const credentials = fs.readFileSync('./credentials.json');
-    const credentialsJSON = JSON.parse(credentials);
-
-    user.username = credentialsJSON.username;
-    user.password = credentialsJSON.password;
-
-
-  } catch (error) {
-    console.log(chalk.red(`
-      ${error}
-    `))
-  }
-
-}
 
 const welcome = async () => {
-
-  figlet('Surge Uploader', (err, data) => {
+  figlet('\nSurge Uploader', (err, data) => {
     if (err) {
       console.log('Something went wrong...');
       console.dir(err);
@@ -72,28 +27,26 @@ const welcome = async () => {
   });
 
   await sleep(1000);
-
-  // Load the user credentials from the file
-  loadUserCredentials();
+  currentUsername = await getSurgeUsername();
 
   console.log(`
-    ${chalk.bgGreen("Current user:")} ${ user.username !== "" ? chalk.green(user.username) : chalk.red("Not logged in") }
+    ${chalk.bgRed('Make sure you have a surge account and you are logged in')}
+    ${chalk.green("Current user:")} ${currentUsername !== "" ? currentUsername : chalk.red("Not logged in")}
   `)
 
 }
 
 
 const executeSurgeQuery = async () => {
-  //execute surge list in the terminal and return the output
 
-  const spinner = createSpinner('Executing query...');
+  //execute surge list in the terminal and return the output
+  const spinner = createSpinner('Getting Surge Projects...');
   spinner.start();
 
   const surgeQuery = `surge list`;
-
   const surgeOutput = await new Promise((resolve, reject) => {
 
-    exec(surgeQuery, (error, stdout, stderr) => {
+    exec(surgeQuery, (error, stdout, _) => {
       if (error) {
         spinner.stop();
         reject(error);
@@ -108,8 +61,20 @@ const executeSurgeQuery = async () => {
 
 }
 
+const askIfPushToSurge = async () => {
+  const answers = inquirer.prompt({
+    type: 'confirm',
+    name: 'pushToSurge',
+    message: 'Do you want to push the generated HTML to Surge?'
+  });
+
+  const finalAnswers = (await answers).pushToSurge;
+
+  return finalAnswers;
+}
+
 const getSurgeProjects = async () => {
-// Get the list of projects from surge
+  // Get the list of projects from surge
 
   const surgeOutput = await executeSurgeQuery();
   const projects = surgeOutput.split('\n');
@@ -119,7 +84,7 @@ const getSurgeProjects = async () => {
     const match = project.match(regex);
     return match ? match[0].replace("39m", "") : null;
   }).filter(project => project !== null);
-  
+
   return projectNames;
 }
 
@@ -134,18 +99,66 @@ const generateProjectHTML = (projectNames) => {
   }).join('');
 
 
-  const newHTML = baseHTMLTemplate.replace("<<LINKS>>", projectsHTML )
+  const newHTML = baseHTMLTemplate
+    .replace("<<LINKS>>", projectsHTML)
+    .replace("<<TITLE>>", deleteTerminalCharactersFromName(currentUsername) + "'s Surge Projects");
 
   return newHTML;
 }
 
+const writeHTMLToFile = (html) => {
+  const htmlFolderPath = path.join(homeDir, 'surge-uploader');
+
+  //check if the folder exists
+  if (!existsSync(htmlFolderPath)) {
+    //if not, create it
+    mkdirSync(htmlFolderPath);
+  }
+
+  const htmlFilePath = path.join(htmlFolderPath, 'index.html');
+  writeFileSync(htmlFilePath, html);
+
+}
+
+const pushToSurge = async () => {
+  const spinner = createSpinner('Pushing to surge...');
+  spinner.start();
+
+  const surgeQuery = `surge ${path.join(homeDir, 'surge-uploader')} ${deleteTerminalCharactersFromName(currentUsername)}.surge.sh`;
+  await new Promise((resolve, reject) => {
+    exec(surgeQuery, (error, stdout, _) => {
+      if (error) {
+        spinner.stop();
+        reject(error);
+      }
+      spinner.stop();
+      resolve(stdout);
+    });
+  });
+
+}
+
 
 await welcome();
-if ( user.username === "" ) {
-  await askUserCredentials();
-}
+
+
+// Get the list of projects from surge
 const allProjects = await getSurgeProjects();
+
+// Generate the HTML
 const html = generateProjectHTML(allProjects);
 
-console.log(html);
+// Write the HTML to a file in the home directory
+writeHTMLToFile(html);
+
+// if the pushToSurgeControl is true, push the HTML to surge otherwise exit
+const pushToSurgeControl = await askIfPushToSurge();
+if (pushToSurgeControl) {
+  await pushToSurge();
+  console.log(chalk.green(chalk.bold("The pushed site is available at: https://" + deleteTerminalCharactersFromName(currentUsername) + ".surge.sh")));
+}
+
+console.log(chalk.green(chalk.bold("Done!")));
+console.log(chalk.blue("You can find the generated HTML at: " + path.join(homeDir, 'surge-uploader', 'index.html')));
+
 
