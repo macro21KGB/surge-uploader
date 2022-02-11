@@ -4,11 +4,12 @@
 import chalk from 'chalk';
 import { exec } from 'child_process';
 import figlet from 'figlet';
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import inquirer from 'inquirer';
 import { createSpinner } from 'nanospinner';
 import path from 'path';
-import { baseHTMLTemplate, getSurgeUsername, deleteTerminalCharactersFromName } from './utils.js';
+import { getSurgeUsername, deleteTerminalCharactersFromName } from './utils.js';
+import { generateProjectHTML, writeHTMLToFile } from './htmlHandling.js';
+
 
 const sleep = (ms = 2000) => new Promise(resolve => setTimeout(resolve, ms));
 const homeDir = process.env[(process.platform == 'win32') ? 'USERPROFILE' : 'HOME'];
@@ -37,7 +38,7 @@ const welcome = async () => {
 }
 
 
-const executeSurgeQuery = async () => {
+const executeGetSurgeProjects = async () => {
 
   //execute surge list in the terminal and return the output
   const spinner = createSpinner('Getting Surge Projects...');
@@ -58,7 +59,6 @@ const executeSurgeQuery = async () => {
 
 
   return surgeOutput;
-
 }
 
 const askIfPushToSurge = async () => {
@@ -76,7 +76,7 @@ const askIfPushToSurge = async () => {
 const getSurgeProjects = async () => {
   // Get the list of projects from surge
 
-  const surgeOutput = await executeSurgeQuery();
+  const surgeOutput = await executeGetSurgeProjects();
   const projects = surgeOutput.split('\n');
   const regex = /([\w\-]+\.surge.sh)/gi;
 
@@ -88,37 +88,6 @@ const getSurgeProjects = async () => {
   return projectNames;
 }
 
-const generateProjectHTML = (projectNames) => {
-
-  const projectsHTML = projectNames.map(project => {
-    return `
-      <li>
-        <a href="https://${project}" target="_blank">${project}</a>
-      </li>
-    `
-  }).join('');
-
-
-  const newHTML = baseHTMLTemplate
-    .replace("<<LINKS>>", projectsHTML)
-    .replace("<<TITLE>>", deleteTerminalCharactersFromName(currentUsername) + "'s Surge Projects");
-
-  return newHTML;
-}
-
-const writeHTMLToFile = (html) => {
-  const htmlFolderPath = path.join(homeDir, 'surge-uploader');
-
-  //check if the folder exists
-  if (!existsSync(htmlFolderPath)) {
-    //if not, create it
-    mkdirSync(htmlFolderPath);
-  }
-
-  const htmlFilePath = path.join(htmlFolderPath, 'index.html');
-  writeFileSync(htmlFilePath, html);
-
-}
 
 const pushToSurge = async () => {
   const spinner = createSpinner('Pushing to surge...');
@@ -139,14 +108,16 @@ const pushToSurge = async () => {
 }
 
 
-await welcome();
+// Main code --------------------------------------------------
 
+
+await welcome();
 
 // Get the list of projects from surge
 const allProjects = await getSurgeProjects();
 
 // Generate the HTML
-const html = generateProjectHTML(allProjects);
+const html = generateProjectHTML(allProjects, currentUsername);
 
 // Write the HTML to a file in the home directory
 writeHTMLToFile(html);
@@ -159,6 +130,7 @@ if (pushToSurgeControl) {
 }
 
 console.log(chalk.green(chalk.bold("Done!")));
-console.log(chalk.blue("You can find the generated HTML at: " + path.join(homeDir, 'surge-uploader', 'index.html')));
+console.log(chalk.blue("You can find the generated HTML at: " + chalk.bold(path.join(homeDir, 'surge-uploader', 'index.html'))));
+console.log(chalk.yellow("You can find the template HTML at: " + chalk.bold(path.join(homeDir, 'surge-uploader-template.html'))));
 
 
