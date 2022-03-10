@@ -1,4 +1,4 @@
-import { writeFileSync, existsSync, readFileSync } from 'fs';
+import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { deleteTerminalCharactersFromName } from './utils.js';
 import chalk from 'chalk';
