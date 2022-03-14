@@ -10,7 +10,6 @@ import path from 'path';
 import { getSurgeUsername, deleteTerminalCharactersFromName } from './utils.js';
 import { generateProjectHTML, writeHTMLToFile } from './htmlHandling.js';
 
-
 const sleep = (ms = 2000) => new Promise(resolve => setTimeout(resolve, ms));
 const homeDir = process.env[(process.platform == 'win32') ? 'USERPROFILE' : 'HOME'];
 
@@ -109,7 +108,24 @@ const pushToSurge = async () => {
 
 
 // Main code --------------------------------------------------
+import yargs from 'yargs'
+import { hideBin } from 'yargs/helpers'
+import {exit} from 'process';
 
+
+
+const argv = yargs(hideBin(process.argv))
+  .option('locations', {
+    describe: 'Locations to generate HTML for',
+  })
+  .alias('locations', 'l')
+  .parse()
+
+if (argv.locations) {
+  console.log(chalk.blue("You can find the generated HTML at: " + chalk.bold(path.join(homeDir, 'surge-uploader', 'index.html'))));
+  console.log(chalk.yellow("You can find the template HTML at: " + chalk.bold(path.join(homeDir, 'surge-uploader-template.html'))));
+  exit()
+}
 
 await welcome();
 
