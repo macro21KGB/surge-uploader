@@ -2,9 +2,7 @@ import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { deleteTerminalCharactersFromName } from './utils.js';
 import chalk from 'chalk';
-
-const homeDir = process.env[(process.platform == 'win32') ? 'USERPROFILE' : 'HOME'];
-
+import { homeDir } from './index.js';
 export const getBaseHTMLTemplate = (homeDir) => {
 
   const defaultHTML = `
@@ -24,16 +22,21 @@ export const getBaseHTMLTemplate = (homeDir) => {
   
    `
   const htmlTemplatePath = join(homeDir, 'surge-uploader-template.html');
+  try {
+    if (!existsSync(homeDir)) mkdirSync(homeDir);
 
-  //check if the file exists
-  if (!existsSync(htmlTemplatePath)) {
-    //if not, create it
-    console.log(chalk.yellow('No template file found, created one at: ' + htmlTemplatePath));
-    writeFileSync(htmlTemplatePath, defaultHTML);
-    return defaultHTML;
+    //check if the file exists
+    if (!existsSync(htmlTemplatePath)) {
+      //if not, create it
+      console.log(chalk.yellow('No template file found, created one at: ' + htmlTemplatePath));
+      writeFileSync(htmlTemplatePath, defaultHTML);
+      return defaultHTML;
+    }
+    return readFileSync(htmlTemplatePath, 'utf8');
   }
-
-  return readFileSync(htmlTemplatePath, 'utf8');
+  catch (e) {
+    console.log(chalk.red(e));
+  }
 
 };
 

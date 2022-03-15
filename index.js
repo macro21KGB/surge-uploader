@@ -6,15 +6,19 @@ import { exec } from 'child_process';
 import figlet from 'figlet';
 import inquirer from 'inquirer';
 import { createSpinner } from 'nanospinner';
-import path from 'path';
+import path, { join } from 'path';
 import { getSurgeUsername, deleteTerminalCharactersFromName } from './utils.js';
 import { generateProjectHTML, writeHTMLToFile } from './htmlHandling.js';
+import yargs from 'yargs'
+import { hideBin } from 'yargs/helpers'
+import { exit } from 'process';
+import { isArgumentsObject } from 'util/types';
 
 const sleep = (ms = 2000) => new Promise(resolve => setTimeout(resolve, ms));
-const homeDir = process.env[(process.platform == 'win32') ? 'USERPROFILE' : 'HOME'];
+export const homeDir = join(process.env[(process.platform == 'win32') ? 'USERPROFILE' : 'HOME'], 'surge-upl');
 
 let currentUsername = '';
-
+let currentSiteName = '';
 
 const welcome = async () => {
   figlet('\nSurge Uploader', (err, data) => {
@@ -89,10 +93,11 @@ const getSurgeProjects = async () => {
 
 
 const pushToSurge = async () => {
+  const finalSiteName = currentSiteName == '' ? deleteTerminalCharactersFromName(currentUsername) : currentSiteName;
   const spinner = createSpinner('Pushing to surge...');
   spinner.start();
 
-  const surgeQuery = `surge ${path.join(homeDir, 'surge-uploader')} ${deleteTerminalCharactersFromName(currentUsername)}.surge.sh`;
+  const surgeQuery = `surge ${path.join(homeDir, 'surge-uploader')} ${finalSiteName}.surge.sh`;
   await new Promise((resolve, reject) => {
     exec(surgeQuery, (error, stdout, _) => {
       if (error) {
@@ -100,32 +105,48 @@ const pushToSurge = async () => {
         reject(error);
       }
       spinner.stop();
+      console.log(chalk.green(chalk.bold("The site is now available at: https://" + finalSiteName + ".surge.sh")));
       resolve(stdout);
     });
   });
 
 }
 
+const showHomeDirLocations = (homeDir) => {
+  console.log(chalk.blue("You can find the generated HTML at: " + chalk.bold(path.join(homeDir, 'surge-uploader', 'index.html'))));
+  console.log(chalk.yellow("You can find the template HTML at: " + chalk.bold(path.join(homeDir, 'surge-uploader-template.html'))));
+}
 
 // Main code --------------------------------------------------
-import yargs from 'yargs'
-import { hideBin } from 'yargs/helpers'
-import {exit} from 'process';
+
 
 
 
 const argv = yargs(hideBin(process.argv))
   .option('locations', {
     describe: 'Locations to generate HTML for',
+  }).option('sitename', {
+    describe: 'Site name',
+    type: 'string',
+    alias: 'sn'
   })
   .alias('locations', 'l')
+  .alias('help', 'h')
   .parse()
 
 if (argv.locations) {
-  console.log(chalk.blue("You can find the generated HTML at: " + chalk.bold(path.join(homeDir, 'surge-uploader', 'index.html'))));
-  console.log(chalk.yellow("You can find the template HTML at: " + chalk.bold(path.join(homeDir, 'surge-uploader-template.html'))));
+  showHomeDirLocations(homeDir);
   exit()
 }
+
+if (argv.sitename) {
+  if (argv.sitename.endsWith('.surge.sh')) {
+    currentSiteName = argv.sitename.replace('.surge.sh', '');
+  }
+  else
+    currentSiteName = argv.sitename;
+}
+
 
 await welcome();
 
@@ -140,13 +161,10 @@ writeHTMLToFile(html);
 
 // if the pushToSurgeControl is true, push the HTML to surge otherwise exit
 const pushToSurgeControl = await askIfPushToSurge();
-if (pushToSurgeControl) {
+
+if (pushToSurgeControl)
   await pushToSurge();
-  console.log(chalk.green(chalk.bold("The pushed site is available at: https://" + deleteTerminalCharactersFromName(currentUsername) + ".surge.sh")));
-}
+
 
 console.log(chalk.green(chalk.bold("Done!")));
-console.log(chalk.blue("You can find the generated HTML at: " + chalk.bold(path.join(homeDir, 'surge-uploader', 'index.html'))));
-console.log(chalk.yellow("You can find the template HTML at: " + chalk.bold(path.join(homeDir, 'surge-uploader-template.html'))));
-
-
+showHomeDirLocations(homeDir);
