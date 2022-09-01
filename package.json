@@ -1,7 +1,7 @@
 {
   "name": "surge-uploader",
   "type": "module",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "This package allows you to automatically create an HTML page with all your projects uploaded to Surge",
   "main": "index.js",
   "scripts": {
