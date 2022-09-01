@@ -41,20 +41,19 @@ export const getBaseHTMLTemplate = (homeDir) => {
 };
 
 
+
 const generateProjectHTML = (projectNames, currentUsername) => {
 
   const projectsHTML = projectNames.map(project => {
     return `
-        <li class="li-project">
-          <a class="a-project" href="https://${project}" target="_blank">${project}</a>
-        </li>
+        <a class="a-project" href="https://${project}" target="_blank">${project}</a>
       `
   }).join('');
 
 
   const newHTML = getBaseHTMLTemplate(homeDir)
     .replace("<<LINKS>>", projectsHTML)
-    .replace("<<TITLE>>", deleteTerminalCharactersFromName(currentUsername) + "'s Surge Projects");
+    .replace("<<TITLE>>", currentUsername + "'s Surge Projects");
 
   return newHTML;
 }

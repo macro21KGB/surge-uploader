@@ -12,7 +12,6 @@ import { generateProjectHTML, writeHTMLToFile } from './htmlHandling.js';
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
 import { exit } from 'process';
-import { isArgumentsObject } from 'util/types';
 
 const sleep = (ms = 2000) => new Promise(resolve => setTimeout(resolve, ms));
 export const homeDir = join(process.env[(process.platform == 'win32') ? 'USERPROFILE' : 'HOME'], 'surge-upl');
@@ -93,7 +92,7 @@ const getSurgeProjects = async () => {
 
 
 const pushToSurge = async () => {
-  const finalSiteName = currentSiteName == '' ? deleteTerminalCharactersFromName(currentUsername) : currentSiteName;
+  const finalSiteName = currentSiteName == '' ? chosenName.titlePage : currentSiteName;
   const spinner = createSpinner('Pushing to surge...');
   spinner.start();
 
@@ -154,7 +153,17 @@ await welcome();
 const allProjects = await getSurgeProjects();
 
 // Generate the HTML
-const html = generateProjectHTML(allProjects, currentUsername);
+
+
+const chosenName = await inquirer.prompt({
+  type: 'input',
+  name: 'titlePage',
+  message: 'Title of the page( This will also be the url for the submission to surge)',
+  default: deleteTerminalCharactersFromName(currentUsername),
+})
+
+
+const html = generateProjectHTML(allProjects, await chosenName.titlePage);
 
 // Write the HTML to a file in the home directory
 writeHTMLToFile(html);
